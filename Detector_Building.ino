@@ -2,7 +2,7 @@
 int tmp36_pin = A0;
 
 // Delay between reruns
-int delay_time = 2000;
+int delay_time = 2000; // changes 
 
 // Declaring number of decimal places
 int accuracy = 5;
