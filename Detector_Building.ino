@@ -1,8 +1,14 @@
 // Declaring PIN locations
 int tmp36_pin = A0;
 
+// Delay between reruns
+int delay_time = 2000;
+
+// Declaring number of decimal places
+int accuracy = 5;
+
 /**
-   LED pin locations: NONE defaults to -1
+   LED pin locations: NONE defaults to 0
 */
 enum LED {
   red = 4,
@@ -13,9 +19,6 @@ enum LED {
 
 // declaring reference voltage
 float reference = 3.3;
-
-// Declaring accuracy
-int accuracy = 5;
 
 // Declaring LED ranges
 // *change these values*
@@ -51,7 +54,7 @@ void light_LED(int pin, bool output_mode) {
 void setup() {
   // referenence 3.3v loop
   analogReference(EXTERNAL);
-
+  
   // initializing tmp36 pin and setting tmp36 to input
   pinMode(tmp36_pin, INPUT);
 
@@ -65,7 +68,7 @@ void setup() {
    function: converts analog value into voltage value
 */
 float analog_to_voltage(float analog) {
-  return analog * reference / 1023.0;
+  return analog * reference / 1024.0;
 }
 
 /**
@@ -101,7 +104,7 @@ void loop() {
   float temperature_fahrenhiet = celsius_to_fahrenheit(temperature_celsius);
   float temperature_kelvin = celsius_to_kelvin(temperature_celsius);
   // ========================================================================
-
+  
   // printing values with Serial
   // ==================*BEGIN PRINT*===================
   // printing analog
@@ -125,8 +128,10 @@ void loop() {
   Serial.println(temperature_kelvin, accuracy);
   // ===================*END PRINT*====================
 
+  // tracking LED used
   LED current_LED = NONE;
-  // ===================*TURNING ON LEDS*=================
+  
+  // ===================*TURNING ON LEDS*=============================================
   if (blue_min <= temperature_celsius && temperature_celsius < blue_max) {
     Serial.println("Lighting up LED blue");
     light_LED(blue, HIGH);
@@ -146,7 +151,7 @@ void loop() {
   }
 
   // delay for 5000 milliseconds (ms)
-  delay(5000);
+  delay(delay_time);
 
   // turning off current_LED
   switch (current_LED) {
@@ -170,8 +175,11 @@ void loop() {
       Serial.println("RUNNING: Default Case in Switch Case");
       break;
   }
-  // ==================*TURNING OFF LEDS*=================
+  // ==================*TURNING OFF LEDS*=============================================
 
+  // Separator
+  for (int i = 0; i < 40; i++) { Serial.print("-"); }
+  Serial.println();
   // delay for 5000 milliseconds (ms)
-  delay(5000);
+  delay(delay_time);
 }
