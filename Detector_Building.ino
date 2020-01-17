@@ -1,11 +1,11 @@
 // Declaring PIN locations
-int tmp36_pin = A0;
+const int tmp36_pin = A0;
 
 // Delay between reruns
-int delay_time = 2000;
+const int delay_time = 2000;
 
 // Declaring number of decimal places
-int accuracy = 5;
+const int accuracy = 5;
 
 /**
    LED pin locations: NONE defaults to 0
@@ -18,7 +18,7 @@ enum LED {
 };
 
 // declaring reference voltage
-float reference = 3.3;
+const float reference = 3.3;
 
 // Declaring LED ranges
 // *change these values*
@@ -52,7 +52,7 @@ void light_LED(int pin, bool output_mode) {
    Setup: Run Once, initialization of pin modes and Serial objects
 */
 void setup() {
-  // referenence 3.3v loop
+  // reference 3.3v loop
   analogReference(EXTERNAL);
   
   // initializing tmp36 pin and setting tmp36 to input
@@ -101,7 +101,7 @@ void loop() {
   float analog = analogRead(tmp36_pin);
   float voltage = analog_to_voltage(analog);
   float temperature_celsius = voltage_to_celsius(voltage);
-  float temperature_fahrenhiet = celsius_to_fahrenheit(temperature_celsius);
+  float temperature_fahrenheit = celsius_to_fahrenheit(temperature_celsius);
   float temperature_kelvin = celsius_to_kelvin(temperature_celsius);
   // ========================================================================
   
@@ -119,9 +119,9 @@ void loop() {
   Serial.print("Temperature Reading (C): ");
   Serial.println(temperature_celsius, accuracy);
 
-  // printing temperature in fahrenhiet
+  // printing temperature in fahrenheit
   Serial.print("Temperature Reading (F): ");
-  Serial.println(temperature_fahrenhiet, accuracy);
+  Serial.println(temperature_fahrenheit, accuracy);
 
   // printing temperature in kelvin
   Serial.print("Temperature Reading (K): ");
@@ -132,28 +132,31 @@ void loop() {
   LED current_LED = NONE;
   
   // ===================*TURNING ON LEDS*=============================================
+  // checking blue range
   if (blue_min <= temperature_celsius && temperature_celsius < blue_max) {
     Serial.println("Lighting up LED blue");
     light_LED(blue, HIGH);
     current_LED = blue;
   }
 
+  // checking green range
   if (green_min <= temperature_celsius && temperature_celsius < green_max) {
     Serial.println("Lighting up LED green");
     light_LED(green, HIGH);
     current_LED = green;
   }
 
+  // checking red range
   if (red_min <= temperature_celsius && temperature_celsius < red_max) {
     Serial.println("Lighting up LED blue");
     light_LED(red, HIGH);
     current_LED = red;
   }
 
-  // delay for 5000 milliseconds (ms)
+  // delay for delay_time (ms)
   delay(delay_time);
 
-  // turning off current_LED
+  // turning off current_LED (current LED being lighted)
   switch (current_LED) {
     case NONE:
       // no LED lighted
@@ -177,9 +180,10 @@ void loop() {
   }
   // ==================*TURNING OFF LEDS*=============================================
 
-  // Separator
+  // Separator between measurements
   for (int i = 0; i < 40; i++) { Serial.print("-"); }
   Serial.println();
-  // delay for 5000 milliseconds (ms)
+  
+  // delay for delay_time (ms)
   delay(delay_time);
 }
