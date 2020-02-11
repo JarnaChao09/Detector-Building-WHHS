@@ -1,189 +1,272 @@
-// Declaring PIN locations
-const int tmp36_pin = A0;
+// Ranges of the LEDS
+namespace RANGES {
+  const float red_min = 40;
+  const float red_max = 60;
 
-// Delay between reruns
-const int delay_time = 2000;
+  const float green_min = 20;
+  const float green_max = 40;
 
-// Declaring number of decimal places
-const int accuracy = 5;
+  const float blue_min = 0;
+  const float blue_max = 20;
+}
 
-/**
-   LED pin locations: NONE defaults to 0
-*/
-enum LED {
-  red = 4,
-  green = 2,
-  blue = 3,
-  NONE = 0
+// Constants used through out the program
+namespace CONSTANTS {
+  const int tmp36_pin = 0;
+
+  const int delay_time = 2000;
+
+  const int accuracy = 5;
+
+  const float reference = 3.3;
+
+  void separate() {
+    for (int i = 0; i < 40; i++) { Serial.print("-"); }
+  }
 };
 
-// declaring reference voltage
-const float reference = 3.3;
+// Range Checker as a struct
+struct CHECKER {
+  public:
+  float value;
 
-// Declaring LED ranges
-// *change these values*
-// ============*START CHANGE*============
-// RED: Hot temperatures
-float red_min = 40;
-float red_max = 60;
-// GREEN: Moderate temperatures
-float green_min = 20;
-float green_max = 40;
-// BLUE: Cold temperatures
-float blue_min = 0;
-float blue_max = 20;
-// ============*END CHANGE*==============
+  CHECKER(float value = 0.0) {
+    value = value;
+  }
 
-/**
-   Init: initializing all LEDs pin and setting to mode output
-*/
-void init_LEDS() {
-  pinMode(red, OUTPUT);
-  pinMode(green, OUTPUT);
-  pinMode(blue, OUTPUT);
-}
-/**
-   function: lighting output of specific LED to HIGH
-*/
-void light_LED(int pin, bool output_mode) {
-  digitalWrite(pin, output_mode);
-}
-/**
-   Setup: Run Once, initialization of pin modes and Serial objects
-*/
-void setup() {
-  // reference 3.3v loop
-  analogReference(EXTERNAL);
+  bool check_red() {
+    return RANGES::red_min <= value && value <= RANGES::red_max;
+  }
+
+  bool check_blue() {
+    return RANGES::blue_min <= value && value <= RANGES::blue_max;
+  }
+
+  bool check_green() {
+    return RANGES::green_min <= value && value <= RANGES::green_max;
+  }
+};
+
+// LED struct
+struct LED {
+  private:
+  void light_LED(int pin, bool output_mode) {
+    digitalWrite(pin, output_mode);
+  }
+
+  public:
+  // enum that holds pin location
+  enum COLOR {
+    RED = 4,
+    GREEN = 2,
+    BLUE = 3,
+    NONE = 0
+  };
+
+  // state that determines if the LED is On or Off
+  enum STATE {
+    ON,
+    OFF
+  };
   
-  // initializing tmp36 pin and setting tmp36 to input
-  pinMode(tmp36_pin, INPUT);
+  COLOR current_LED;
+  bool is_on;
+
+  LED(COLOR color = NONE) {
+    current_LED = color;
+    is_on = false;
+  }
+
+  LED set_color(COLOR color) {
+    current_LED = color;
+    return *this;
+  }
+
+  void set_state(STATE state) {
+    switch (state) {
+      case ON: 
+        light_LED(current_LED, 1);
+        is_on = true;
+        break;
+      case OFF: 
+        light_LED(current_LED, 0);
+        is_on = false;
+        break;
+    }
+  }
+
+  // returns string of LED information
+  String to_string() {
+    String ret = "";
+    switch (current_LED) {
+      case NONE: return "No LED";
+      case RED: ret += "Color: Red";
+      case BLUE: ret += "Color: BLUE";
+      case GREEN: ret += "Color: GREEN";
+    }
+
+    ret += ", ";
+
+    if (is_on) {ret += "State: ON";}
+    else {ret += "State: OFF";}
+    
+    return ret;
+  }
+};
+
+// Temperature as a struct
+struct TEMPERATURE {
+  public:
+  float value;
+
+  TEMPERATURE(float value = 0.0) {
+    value = value;
+  }
+
+  TEMPERATURE to_fahrenheit() {
+    float dummy = value * (9.0 / 5.0) + 32.0;
+    return dummy;
+  }
+
+  TEMPERATURE to_kelvin() {
+    float dummy = value + 273.15;
+    return TEMPERATURE(dummy);
+  }
+};
+
+// Voltage as a struct
+struct VOLTAGE {
+  public:
+  float value;
+
+  VOLTAGE(float value = 0.0) {
+    value = value;
+  }
+
+  TEMPERATURE to_celsius() {
+    float dummy = (value - 0.5) * 100.0;
+    return TEMPERATURE(value);
+  }
+};
+
+// Analog as a struct
+struct ANALOG {
+  public:
+  float value;
+
+  ANALOG(float value = 0.0) {
+    value = value;
+  }
+
+  VOLTAGE to_voltage() {
+    float dummy = value * CONSTANTS::reference / 1023.0;
+    return VOLTAGE(dummy);
+  }
+};
+
+// Detector struct
+// all the magic happens here
+struct DETECTOR {
+  public:
+  ANALOG analog;
+  VOLTAGE voltage;
+  TEMPERATURE celsius, fahrenheit, kelvin;
+
+  DETECTOR(float &value) {
+    analog = ANALOG(value);
+    voltage = analog.to_voltage();
+    celsius = voltage.to_celsius();
+    fahrenheit = celsius.to_fahrenheit();
+    kelvin = celsius.to_kelvin();
+  }
+};
+
+// sets LED output modes
+void init_LEDS() {
+  pinMode(LED::COLOR::RED, OUTPUT);
+  pinMode(LED::COLOR::GREEN, OUTPUT);
+  pinMode(LED::COLOR::BLUE, OUTPUT);
+}
+
+/**
+ * runs once, initialization of pinModes and Serial
+ */
+void setup() {
+  analogReference(EXTERNAL);
+
+  pinMode(CONSTANTS::tmp36_pin, INPUT);
 
   init_LEDS();
 
-  // begin serial stream
   Serial.begin(9600);
 }
 
 /**
-   function: converts analog value into voltage value
-*/
-float analog_to_voltage(float analog) {
-  return analog * reference / 1024.0;
-}
-
-/**
-   function: converts voltage value into celsius temperature value
-*/
-float voltage_to_celsius(float volt) {
-  return (volt - 0.5) * 100.0;
-}
-
-/**
-   function: converts celsius value into kelvin temperature value
-*/
-float celsius_to_kelvin(float celsius) {
-  return celsius + 273.15;
-}
-
-/**
-   function: converts celsius value into fahrenheit temperature value
-*/
-float celsius_to_fahrenheit(float celsius) {
-  return celsius * (9.0 / 5.0) + 32.0;
-}
-
-/**
-   Loop: Runs repeatedly until interrupted by error or loss of power
-*/
+ * Loop: Runs repeatedly until interrupted by error or loss of power
+ */
 void loop() {
-  // defining variables and calculating values
-  // ======================*CALCULATING VALUES*==============================
-  float analog = analogRead(tmp36_pin);
-  float voltage = analog_to_voltage(analog);
-  float temperature_celsius = voltage_to_celsius(voltage);
-  float temperature_fahrenheit = celsius_to_fahrenheit(temperature_celsius);
-  float temperature_kelvin = celsius_to_kelvin(temperature_celsius);
-  // ========================================================================
-  
-  // printing values with Serial
-  // ==================*BEGIN PRINT*===================
+  // reading analog input
+  float input = analogRead(CONSTANTS::tmp36_pin);
+
+  // creation of detector object
+  DETECTOR detector = DETECTOR(input);
+
   // printing analog
   Serial.print("Analog Reading: ");
-  Serial.println(analog, accuracy);
-
+  Serial.println(detector.analog.value, CONSTANTS::accuracy);
+  
   // printing voltage
   Serial.print("Voltage Reading: ");
-  Serial.println(voltage, accuracy);
-
+  Serial.println(detector.voltage.value, CONSTANTS::accuracy);
+  
   // printing temperature in celsius
   Serial.print("Temperature Reading (C): ");
-  Serial.println(temperature_celsius, accuracy);
+  Serial.println(detector.celsius.value, CONSTANTS::accuracy);
 
   // printing temperature in fahrenheit
   Serial.print("Temperature Reading (F): ");
-  Serial.println(temperature_fahrenheit, accuracy);
+  Serial.println(detector.fahrenheit.value, CONSTANTS::accuracy);
 
   // printing temperature in kelvin
   Serial.print("Temperature Reading (K): ");
-  Serial.println(temperature_kelvin, accuracy);
-  // ===================*END PRINT*====================
+  Serial.println(detector.kelvin.value, CONSTANTS::accuracy);
 
-  // tracking LED used
-  LED current_LED = NONE;
+  // creation of LED object that holds current LED
+  LED current_LED = LED();
+
+  // creation of Checker object to check ranges of the temperature to turn on LEDS
+  CHECKER check = CHECKER(detector.celsius.value);
   
-  // ===================*TURNING ON LEDS*=============================================
   // checking blue range
-  if (blue_min <= temperature_celsius && temperature_celsius < blue_max) {
-    Serial.println("Lighting up LED blue");
-    light_LED(blue, HIGH);
-    current_LED = blue;
+  if (check.check_blue()) {
+    current_LED.set_color(LED::COLOR::BLUE).set_state(LED::STATE::ON);
   }
 
   // checking green range
-  if (green_min <= temperature_celsius && temperature_celsius < green_max) {
-    Serial.println("Lighting up LED green");
-    light_LED(green, HIGH);
-    current_LED = green;
+  if (check.check_green()) {
+   current_LED.set_color(LED::COLOR::GREEN).set_state(LED::STATE::ON);
   }
 
   // checking red range
-  if (red_min <= temperature_celsius && temperature_celsius < red_max) {
-    Serial.println("Lighting up LED blue");
-    light_LED(red, HIGH);
-    current_LED = red;
+  if (check.check_red()) {
+    current_LED.set_color(LED::COLOR::RED).set_state(LED::STATE::ON);
   }
 
-  // delay for delay_time (ms)
-  delay(delay_time);
+  // printing current LED status
+  Serial.println(current_LED.to_string());
 
-  // turning off current_LED (current LED being lighted)
-  switch (current_LED) {
-    case NONE:
-      // no LED lighted
-      Serial.println("No LED was turned on");
-      break;
-    case red:
-      Serial.println("Turning off LED red");
-      light_LED(red, LOW);
-      break;
-    case green:
-      Serial.println("Turning off LED green");
-      light_LED(green, LOW);
-      break;
-    case blue:
-      Serial.println("Turning off LED blue");
-      light_LED(blue, LOW);
-      break;
-    default:
-      Serial.println("RUNNING: Default Case in Switch Case");
-      break;
-  }
-  // ==================*TURNING OFF LEDS*=============================================
+  // delay on LED lighting up for a set time (ms)
+  delay(CONSTANTS::delay_time);
 
-  // Separator between measurements
-  for (int i = 0; i < 40; i++) { Serial.print("-"); }
-  Serial.println();
-  
-  // delay for delay_time (ms)
-  delay(delay_time);
+  // turning off current LED
+  current_LED.set_state(LED::STATE::OFF);
+
+  // printing current LED status
+  Serial.println(current_LED.to_string());
+
+  // formatter to see different runs
+  CONSTANTS::separate();
+
+  // delay before rerunning loop (ms)
+  delay(CONSTANTS::delay_time);
 }
