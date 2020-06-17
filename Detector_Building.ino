@@ -1,18 +1,18 @@
 // Ranges of the LEDS
 namespace RANGES {
-  const float red_min = 40;
-  const float red_max = 60;
+  const float red_min = 40.1;
+  const float red_max = 75;
 
-  const float green_min = 20;
+  const float green_min = 15.1;
   const float green_max = 40;
 
   const float blue_min = 0;
-  const float blue_max = 20;
+  const float blue_max = 15;
 }
 
 // Constants used through out the program
 namespace CONSTANTS {
-  const int tmp36_pin = 0;
+  const int tmp36_pin = A0;
 
   const int delay_time = 2000;
 
@@ -70,11 +70,11 @@ struct LED {
   };
   
   COLOR current_LED;
-  bool is_on;
+  bool* is_on;
 
   LED(COLOR color = NONE) {
     current_LED = color;
-    is_on = false;
+    *this->is_on = false;
   }
 
   LED set_color(COLOR color) {
@@ -83,16 +83,18 @@ struct LED {
   }
 
   void set_state(STATE state) {
+    bool s = false;
     switch (state) {
       case ON: 
         light_LED(current_LED, 1);
-        is_on = true;
+        s = true;
         break;
       case OFF: 
         light_LED(current_LED, 0);
-        is_on = false;
+        s = false;
         break;
     }
+    this->is_on = &s;
   }
 
   // returns string of LED information
@@ -100,14 +102,14 @@ struct LED {
     String ret = "";
     switch (current_LED) {
       case NONE: return "No LED";
-      case RED: ret += "Color: Red";
-      case BLUE: ret += "Color: BLUE";
-      case GREEN: ret += "Color: GREEN";
+      case RED: ret += "Color: Red"; break;
+      case BLUE: ret += "Color: BLUE"; break;
+      case GREEN: ret += "Color: GREEN"; break;
     }
 
     ret += ", ";
-
-    if (is_on) {ret += "State: ON";}
+    
+    if (is_on == true) {ret += "State: ON";}
     else {ret += "State: OFF";}
     
     return ret;
@@ -123,14 +125,14 @@ struct TEMPERATURE {
     value = value;
   }
 
-  TEMPERATURE to_fahrenheit() {
+  float to_fahrenheit() {
     float dummy = value * (9.0 / 5.0) + 32.0;
     return dummy;
   }
 
-  TEMPERATURE to_kelvin() {
+  float to_kelvin() {
     float dummy = value + 273.15;
-    return TEMPERATURE(dummy);
+    return dummy;
   }
 };
 
@@ -143,9 +145,9 @@ struct VOLTAGE {
     value = value;
   }
 
-  TEMPERATURE to_celsius() {
+  float to_celsius() {
     float dummy = (value - 0.5) * 100.0;
-    return TEMPERATURE(value);
+    return dummy;
   }
 };
 
@@ -154,13 +156,14 @@ struct ANALOG {
   public:
   float value;
 
+
   ANALOG(float value = 0.0) {
     value = value;
   }
 
-  VOLTAGE to_voltage() {
-    float dummy = value * CONSTANTS::reference / 1023.0;
-    return VOLTAGE(dummy);
+  float to_voltage() {
+    float dummy = this->value * CONSTANTS::reference / 1023.0;
+    return dummy;
   }
 };
 
@@ -172,12 +175,12 @@ struct DETECTOR {
   VOLTAGE voltage;
   TEMPERATURE celsius, fahrenheit, kelvin;
 
-  DETECTOR(float &value) {
-    analog = ANALOG(value);
-    voltage = analog.to_voltage();
-    celsius = voltage.to_celsius();
-    fahrenheit = celsius.to_fahrenheit();
-    kelvin = celsius.to_kelvin();
+  DETECTOR(float value) {
+    analog.value = value;
+    voltage.value = analog.to_voltage();
+    celsius.value = voltage.to_celsius();
+    fahrenheit.value = celsius.to_fahrenheit();
+    kelvin.value = celsius.to_kelvin();
   }
 };
 
@@ -209,33 +212,35 @@ void loop() {
   float input = analogRead(CONSTANTS::tmp36_pin);
 
   // creation of detector object
-  DETECTOR detector = DETECTOR(input);
+  DETECTOR* detector = new DETECTOR(input);
 
   // printing analog
   Serial.print("Analog Reading: ");
-  Serial.println(detector.analog.value, CONSTANTS::accuracy);
+  Serial.println(detector->analog.value, CONSTANTS::accuracy);
   
   // printing voltage
   Serial.print("Voltage Reading: ");
-  Serial.println(detector.voltage.value, CONSTANTS::accuracy);
+  Serial.println(detector->voltage.value, CONSTANTS::accuracy);
   
   // printing temperature in celsius
   Serial.print("Temperature Reading (C): ");
-  Serial.println(detector.celsius.value, CONSTANTS::accuracy);
+  Serial.println(detector->celsius.value, CONSTANTS::accuracy);
 
   // printing temperature in fahrenheit
   Serial.print("Temperature Reading (F): ");
-  Serial.println(detector.fahrenheit.value, CONSTANTS::accuracy);
+  Serial.println(detector->fahrenheit.value, CONSTANTS::accuracy);
 
   // printing temperature in kelvin
   Serial.print("Temperature Reading (K): ");
-  Serial.println(detector.kelvin.value, CONSTANTS::accuracy);
+  Serial.println(detector->kelvin.value, CONSTANTS::accuracy);
 
   // creation of LED object that holds current LED
   LED current_LED = LED();
 
   // creation of Checker object to check ranges of the temperature to turn on LEDS
-  CHECKER check = CHECKER(detector.celsius.value);
+  CHECKER check;
+  
+  check.value = detector->celsius.value;
   
   // checking blue range
   if (check.check_blue()) {
@@ -266,6 +271,8 @@ void loop() {
 
   // formatter to see different runs
   CONSTANTS::separate();
+
+  Serial.print("\n");
 
   // delay before rerunning loop (ms)
   delay(CONSTANTS::delay_time);
